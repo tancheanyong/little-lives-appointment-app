@@ -49,8 +49,8 @@ export class AppointmentService {
   private generateAvailableSlots = (date: string) => {
     const availableSlots: Slot[] = [];
     // TODO:  Use config module for env
-    let slotStartTime = dayjs(process.env.SLOT_START_TIME, 'h:mm A'); // e.g., '9:00 AM'
-    const slotEndTime = dayjs(process.env.SLOT_END_TIME, 'h:mm A'); // e.g., '6:00 PM'
+    let slotStartTime = dayjs(process.env.SLOT_START_TIME, 'h:mmA');
+    const slotEndTime = dayjs(process.env.SLOT_END_TIME, 'h:mmA');
     const slotDuration = parseInt(
       process.env.SLOT_DURATION_MINUTES ?? '30',
       10,
@@ -65,8 +65,8 @@ export class AppointmentService {
       ) {
         availableSlots.push({
           date,
-          startTime: slotStartTime.format('h:mm A'),
-          endTime: currentSlotEnd.format('h:mm A'),
+          startTime: slotStartTime.format('h:mmA'),
+          endTime: currentSlotEnd.format('h:mmA'),
         });
       }
 
