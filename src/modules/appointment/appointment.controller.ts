@@ -8,7 +8,6 @@ export class AppointmentController {
 
   @Get()
   findAvailableSlots(@Query('date') date: string) {
-    console.log({ date });
     return this.appointmentService.getAvailableSlots(date);
   }
 

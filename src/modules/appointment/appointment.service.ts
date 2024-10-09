@@ -1,4 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+} from '@nestjs/common';
 import dayjs from 'dayjs';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
 import { AppointmentEntity } from './appointment.entity';
@@ -79,6 +83,12 @@ export class AppointmentService {
   };
 
   public getAvailableSlots(date: string) {
+    const parsedDate = dayjs(date, 'DD/MM/YYYY', true);
+    if (!parsedDate.isValid()) {
+      throw new BadRequestException(
+        `date must be in the format of "DD/MM/YYYY"`,
+      );
+    }
     // get existing appointments for the given date
     const existingAppointments: AppointmentEntity[] = this.appointmentRepo
       .findAll()
@@ -111,7 +121,7 @@ export class AppointmentService {
       !availableSlots?.available_slots ||
       availableSlots?.available_slots <= 0
     ) {
-      throw new Error(`Slot unavailable`);
+      throw new ForbiddenException(`Slot unavailable`);
     }
 
     this.appointmentRepo.save(createAppointmentInput);
