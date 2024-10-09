@@ -125,7 +125,6 @@ export class AppointmentService {
     }
 
     this.appointmentRepo.save(createAppointmentInput);
-    console.log({ createAppointmentInput });
     return true;
   }
 }
