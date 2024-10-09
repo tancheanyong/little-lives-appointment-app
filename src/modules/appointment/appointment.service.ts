@@ -47,6 +47,13 @@ export class AppointmentService {
   constructor(private appointmentRepo: AppointmentRepo) {}
 
   private generateAvailableSlots = (date: string) => {
+    // Can't book on weekends
+    if (
+      dayjs(date, 'dd/mm/yyyy').day() === 0 ||
+      dayjs(date, 'dd/mm/yyyy').day() === 6
+    ) {
+      return [];
+    }
     const availableSlots: Slot[] = [];
     // TODO:  Use config module for env
     let slotStartTime = dayjs(process.env.SLOT_START_TIME, 'h:mmA');
@@ -92,6 +99,16 @@ export class AppointmentService {
   }
 
   public createAppointment(createAppointmentInput: CreateAppointmentDto) {
+    const isSlotBooked = !!this.appointmentRepo
+      .findAll()
+      .find(
+        (app) =>
+          app.startTime === createAppointmentInput.startTime &&
+          app.date === createAppointmentInput.date,
+      );
+    if (isSlotBooked) {
+      throw new Error(`Slot unavailable`);
+    }
     this.appointmentRepo.save(createAppointmentInput);
     console.log({ createAppointmentInput });
     return true;
