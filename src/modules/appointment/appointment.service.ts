@@ -5,11 +5,7 @@ import { AppointmentEntity } from './appointment.entity';
 import { CreateAppointmentDto } from './dtos/create-appointment.dto';
 dayjs.extend(customParseFormat);
 
-type Slot = {
-  date: string;
-  startTime: string;
-  endTime: string;
-};
+type Slot = Omit<AppointmentEntity, 'bookerId'> & { available_slots: number };
 
 @Injectable()
 export class AppointmentRepo {
@@ -19,14 +15,12 @@ export class AppointmentRepo {
       {
         bookerId: 'Adam',
         date: '27/03/2024',
-        startTime: '9:00AM',
-        endTime: '9:30AM',
+        time: '9:00AM',
       },
       {
         bookerId: 'John Smith',
         date: '27/03/2024',
-        startTime: '10:00AM',
-        endTime: '10:30AM',
+        time: '10:00AM',
       },
     ];
   }
@@ -36,9 +30,7 @@ export class AppointmentRepo {
   }
 
   save(newAppointment: AppointmentEntity) {
-    // TODO:  Save only if start time and date is different
     this.appointments.push(newAppointment);
-    console.log('appointments', this.appointments);
   }
 }
 
@@ -46,7 +38,7 @@ export class AppointmentRepo {
 export class AppointmentService {
   constructor(private appointmentRepo: AppointmentRepo) {}
 
-  private generateAvailableSlots = (date: string) => {
+  private generateDailySlots = (date: string) => {
     // Can't book on weekends
     if (
       dayjs(date, 'dd/mm/yyyy').day() === 0 ||
@@ -62,18 +54,21 @@ export class AppointmentService {
       process.env.SLOT_DURATION_MINUTES ?? '30',
       10,
     );
+
     while (slotStartTime.isBefore(slotEndTime)) {
       const currentSlotEnd = slotStartTime.add(slotDuration, 'minute');
 
-      // Add the slot to the list if it ends before or exactly at the slotEndTime time
       if (
         currentSlotEnd.isBefore(slotEndTime) ||
         currentSlotEnd.isSame(slotEndTime)
       ) {
         availableSlots.push({
           date,
-          startTime: slotStartTime.format('h:mmA'),
-          endTime: currentSlotEnd.format('h:mmA'),
+          time: slotStartTime.format('h:mmA'),
+          available_slots: parseInt(
+            process.env.AVAILABLE_SLOTS_AMOUNT ?? '1',
+            10,
+          ),
         });
       }
 
@@ -84,31 +79,43 @@ export class AppointmentService {
   };
 
   public getAvailableSlots(date: string) {
-    // Query from db
-    const existingAppointments: AppointmentEntity[] =
-      this.appointmentRepo.findAll();
+    // get existing appointments for the given date
+    const existingAppointments: AppointmentEntity[] = this.appointmentRepo
+      .findAll()
+      .filter((app) => app.date === date);
 
-    const availableSlots = this.generateAvailableSlots(date).filter((slot) => {
-      const foo = !existingAppointments.some(
-        (app) => slot.startTime === app.startTime,
-      );
-      return foo;
+    // get daily available slots
+    const dailySlots = this.generateDailySlots(date);
+
+    // Go through daily available slots, and for each time bracket, query how many of the
+    // same time bracket exists in existing appointments, then minus from the avaiable_slots
+    const availableSlots = dailySlots.map((slot) => {
+      const bookedSlotsAmount = existingAppointments.filter(
+        (app) => app.time === slot.time,
+      ).length;
+      return {
+        ...slot,
+        available_slots: slot.available_slots - bookedSlotsAmount,
+      };
     });
-    console.log({ availableSlots });
+
     return availableSlots;
   }
 
   public createAppointment(createAppointmentInput: CreateAppointmentDto) {
+    // TODO:  This can be done as db query, will be much faster
     const isSlotBooked = !!this.appointmentRepo
       .findAll()
       .find(
         (app) =>
-          app.startTime === createAppointmentInput.startTime &&
+          app.time === createAppointmentInput.time &&
           app.date === createAppointmentInput.date,
       );
+
     if (isSlotBooked) {
       throw new Error(`Slot unavailable`);
     }
+
     this.appointmentRepo.save(createAppointmentInput);
     console.log({ createAppointmentInput });
     return true;

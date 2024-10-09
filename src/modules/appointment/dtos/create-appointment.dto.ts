@@ -9,8 +9,5 @@ export class CreateAppointmentDto {
   date: string;
 
   @IsString()
-  startTime: string;
-
-  @IsString()
-  endTime: string;
+  time: string;
 }

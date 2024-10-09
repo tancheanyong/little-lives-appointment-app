@@ -3,7 +3,5 @@ export class AppointmentEntity {
 
   date: string;
 
-  startTime: string;
-
-  endTime: string;
+  time: string;
 }
