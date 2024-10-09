@@ -103,16 +103,14 @@ export class AppointmentService {
   }
 
   public createAppointment(createAppointmentInput: CreateAppointmentDto) {
-    // TODO:  This can be done as db query, will be much faster
-    const isSlotBooked = !!this.appointmentRepo
-      .findAll()
-      .find(
-        (app) =>
-          app.time === createAppointmentInput.time &&
-          app.date === createAppointmentInput.date,
-      );
+    const availableSlots = this.getAvailableSlots(
+      createAppointmentInput.date,
+    ).find((slot) => slot.time === createAppointmentInput.time);
 
-    if (isSlotBooked) {
+    if (
+      !availableSlots?.available_slots ||
+      availableSlots?.available_slots <= 0
+    ) {
       throw new Error(`Slot unavailable`);
     }
 
