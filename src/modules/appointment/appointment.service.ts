@@ -1,37 +1,21 @@
+import { Injectable } from '@nestjs/common';
+import dayjs from 'dayjs';
+import customParseFormat from 'dayjs/plugin/customParseFormat';
 import { AppointmentEntity } from './appointment.entity';
+import { CreateAppointmentDto } from './dtos/create-appointment.dto';
+dayjs.extend(customParseFormat);
 
 type Slot = {
-  id: string;
   date: string;
   startTime: string;
   endTime: string;
 };
 
-export class AppointmentService {
-  private generateAvailableSlots = (date: string) => {
-    const availableSlots: Slot[] = [
-      {
-        id: '1',
-        date,
-        startTime: '9:00AM',
-        endTime: '9:30AM',
-      },
-      {
-        id: '2',
-        date,
-        startTime: '11:00AM',
-        endTime: '11:30AM',
-      },
-    ];
-    // for (const slotNumber of NumberOfSlotsInADay) {
-    //   availableSlots.push({ id: slotNumber,date,startTime:});
-    // }
-    return availableSlots;
-  };
-
-  public getAvailableSlots(date: string) {
-    // Query from db
-    const existingAppointments: AppointmentEntity[] = [
+@Injectable()
+export class AppointmentRepo {
+  private appointments: AppointmentEntity[];
+  constructor() {
+    this.appointments = [
       {
         bookerId: 'Adam',
         date: '27/03/2024',
@@ -45,15 +29,71 @@ export class AppointmentService {
         endTime: '10:30AM',
       },
     ];
+  }
+
+  findAll() {
+    return this.appointments;
+  }
+
+  save(newAppointment: AppointmentEntity) {
+    // TODO:  Save only if start time and date is different
+    this.appointments.push(newAppointment);
+    console.log('appointments', this.appointments);
+  }
+}
+
+@Injectable()
+export class AppointmentService {
+  constructor(private appointmentRepo: AppointmentRepo) {}
+
+  private generateAvailableSlots = (date: string) => {
+    const availableSlots: Slot[] = [];
+    // TODO:  Use config module for env
+    let slotStartTime = dayjs(process.env.SLOT_START_TIME, 'h:mm A'); // e.g., '9:00 AM'
+    const slotEndTime = dayjs(process.env.SLOT_END_TIME, 'h:mm A'); // e.g., '6:00 PM'
+    const slotDuration = parseInt(
+      process.env.SLOT_DURATION_MINUTES ?? '30',
+      10,
+    );
+    while (slotStartTime.isBefore(slotEndTime)) {
+      const currentSlotEnd = slotStartTime.add(slotDuration, 'minute');
+
+      // Add the slot to the list if it ends before or exactly at the slotEndTime time
+      if (
+        currentSlotEnd.isBefore(slotEndTime) ||
+        currentSlotEnd.isSame(slotEndTime)
+      ) {
+        availableSlots.push({
+          date,
+          startTime: slotStartTime.format('h:mm A'),
+          endTime: currentSlotEnd.format('h:mm A'),
+        });
+      }
+
+      // Move to the next slot
+      slotStartTime = currentSlotEnd;
+    }
+    return availableSlots;
+  };
+
+  public getAvailableSlots(date: string) {
+    // Query from db
+    const existingAppointments: AppointmentEntity[] =
+      this.appointmentRepo.findAll();
 
     const availableSlots = this.generateAvailableSlots(date).filter((slot) => {
       const foo = !existingAppointments.some(
         (app) => slot.startTime === app.startTime,
       );
-      console.log({ foo });
       return foo;
     });
     console.log({ availableSlots });
     return availableSlots;
+  }
+
+  public createAppointment(createAppointmentInput: CreateAppointmentDto) {
+    this.appointmentRepo.save(createAppointmentInput);
+    console.log({ createAppointmentInput });
+    return true;
   }
 }
